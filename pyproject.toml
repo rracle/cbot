@@ -1,0 +1,11 @@
+[project]
+name = "cbot"
+version = "0.1.0"
+description = "Upbit 알고리즘 트레이딩 봇 (ATR 추세추종, 백테스트 우선)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.1",
+    "pandas>=3.0.3",
+    "requests>=2.34.2",
+]

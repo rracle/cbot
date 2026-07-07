@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# uv
+# uv.lock 은 커밋한다 (재현성). 캐시만 무시.
+.uv/
+
+# 비밀정보 — 절대 커밋 금지
+.env
+*.key
+secrets.*
+
+# 데이터·결과물 (용량 큼, 재생성 가능)
+data/*.csv
+data/*.parquet
+results/
+
+# OS / 에디터
+.DS_Store
+.idea/
+.vscode/
