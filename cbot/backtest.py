@@ -50,6 +50,7 @@ class Trade:
     fees: float   # 매수+매도 수수료 합
     pnl: float    # 수수료 차감 후 순손익 (KRW)
     reason: str   # "stop" | "signal" | "time" | "end_of_data"
+    market: str = ""  # 포트폴리오 백테스트에서 어느 마켓의 트레이드인지
 
     @property
     def return_pct(self) -> float:

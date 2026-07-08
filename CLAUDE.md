@@ -50,6 +50,7 @@ cbot/
 ├── indicators.py        ATR, EMA, Donchian 등 지표 (거래소 무관)
 ├── strategy.py          진입/청산 신호 생성 (거래소 무관)
 ├── backtest.py          백테스트 엔진 (수수료·슬리피지 포함, 거래소 무관)
+├── portfolio.py         다종목 포트폴리오 백테스터 (현금 풀 공유, 선착순 경합)
 └── metrics.py           성과 지표 (CAGR, MDD, Sharpe, 승률, 손익비)
 tests/                   pytest 단위 테스트 (지표·전략·어댑터)
 run_backtest.py          실행 스크립트
