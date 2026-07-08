@@ -44,6 +44,20 @@ def run_one(exchange, market: str, count: int, strategy: TrendFollowingStrategy,
     }
 
 
+def print_yearly(exchange, market: str, count: int) -> None:
+    """연도별 전략 vs B&H 분해 — '최악의 해'가 어디까지 나빠지는지 보는 용도."""
+    candles = get_candles_cached(exchange, market, unit=UNIT, count=count)
+    df = candles_to_df(candles)
+    result = Backtester(BASE).run(df)
+    eq = result.equity
+    print(f"\n--- {market} 연도별 수익률 (전략 vs B&H) ---")
+    for year, grp in eq.groupby(eq.index.year):
+        px = df["close"][df.index.year == year]
+        strat_ret = grp.iloc[-1] / grp.iloc[0] - 1
+        bh_ret = px.iloc[-1] / px.iloc[0] - 1
+        print(f"  {year}: 전략 {strat_ret*100:>+7.1f}%   B&H {bh_ret*100:>+7.1f}%")
+
+
 def print_table(title: str, rows: list[dict]) -> None:
     print(f"\n{'='*100}\n{title}\n{'='*100}")
     print(
@@ -67,14 +81,15 @@ def main() -> None:
     rows = [run_one(exchange, m, 2000, BASE, m) for m in markets]
     print_table("A. 마켓 견고성 — 같은 규칙, 다른 코인 (4h x 2000봉 ≈ 333일)", rows)
 
-    # --- B. 기간 견고성: 더 긴 역사 (약 2.7년 — 상승장+하락장 포함) ---
+    # --- B. 기간 견고성: 5년 풀사이클 (2021 불장 → 2022 폭락 → 2023-25 상승 → 하락) ---
     rows = [
-        run_one(exchange, m, 6000, BASE, m)
+        run_one(exchange, m, 11000, BASE, m)
         for m in ["KRW-BTC", "KRW-ETH"]
     ]
-    print_table("B. 기간 견고성 — 4h x 6000봉 ≈ 2.7년", rows)
+    print_table("B. 기간 견고성 — 4h x 11000봉 ≈ 5년 풀사이클", rows)
+    print_yearly(exchange, "KRW-BTC", 11000)
 
-    # --- C. 파라미터 민감성: 하나씩만 흔든다 (BTC, 2.7년) ---
+    # --- C. 파라미터 민감성: 하나씩만 흔든다 (BTC, 5년) ---
     # 결과가 '완만하게' 변하면 견고, 특정 값에서만 좋으면 위험 신호다.
     variations: list[tuple[str, TrendFollowingStrategy]] = []
     for dc in [10, 15, 20, 30, 40]:
@@ -84,8 +99,8 @@ def main() -> None:
     for trail in [2.0, 3.0, 4.0]:
         variations.append((f"trail={trail}xATR", replace(BASE, atr_trail_mult=trail)))
 
-    rows = [run_one(exchange, "KRW-BTC", 6000, s, label) for label, s in variations]
-    print_table("C. 파라미터 민감성 — KRW-BTC 2.7년, 하나씩만 변경 (기본: dc=20, stop=2, trail=3)", rows)
+    rows = [run_one(exchange, "KRW-BTC", 11000, s, label) for label, s in variations]
+    print_table("C. 파라미터 민감성 — KRW-BTC 5년, 하나씩만 변경 (기본: dc=20, stop=2, trail=3)", rows)
 
 
 if __name__ == "__main__":
