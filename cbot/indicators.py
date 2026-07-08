@@ -83,6 +83,23 @@ def atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.ewm(alpha=1 / period, adjust=False).mean()
 
 
+def rsi(series: pd.Series, period: int = 14) -> pd.Series:
+    """상대강도지수(RSI) — 0~100. 과매도/과매수 판단에 쓴다.
+
+    RS  = 평균 상승폭 / 평균 하락폭   (Wilder 평활 = ewm(alpha=1/period))
+    RSI = 100 - 100/(1+RS)
+    계속 오르기만 하면 100 에, 계속 내리면 0 에 접근한다.
+    평균회귀 전략에선 짧은 period(2~4)로 '단기 급락'을 포착하는 게 표준이다.
+    """
+    if period <= 0:
+        raise ValueError(f"period 는 1 이상이어야 함: {period}")
+    delta = series.diff()
+    gain = delta.clip(lower=0).ewm(alpha=1 / period, adjust=False).mean()
+    loss = (-delta.clip(upper=0)).ewm(alpha=1 / period, adjust=False).mean()
+    rs = gain / loss  # loss=0 → inf → RSI 100 / 둘 다 0(무변동) → NaN
+    return 100 - 100 / (1 + rs)
+
+
 def donchian(df: pd.DataFrame, period: int = 20) -> pd.DataFrame:
     """돈치안 채널 — 최근 period 봉의 고가/저가 범위.
 

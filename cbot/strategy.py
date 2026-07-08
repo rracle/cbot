@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from cbot.indicators import atr, donchian, ema
+from cbot.indicators import atr, donchian, ema, rsi
 
 
 @dataclass
@@ -133,6 +133,79 @@ class TrendFollowingStrategy:
         stop_distance = self.atr_stop_mult * atr_value
         qty = risk_amount / stop_distance
         qty = min(qty, capital / entry_price)  # 현물: 가진 돈 이상 못 산다
+        if qty * entry_price < self.min_order_value:
+            return 0.0
+        return qty
+
+
+@dataclass
+class MeanReversionStrategy:
+    """평균회귀: 상승 국면의 단기 과매도 급락을 사서, 평균 복귀에 판다.
+
+    ⚠️ 검증 실패 — 실전 사용 금지 (실험 기록용으로 보존)
+    KRW-BTC 4h 5년(2021-07~2026-07) 백테스트: -12.8%, PF 0.72, Sharpe -0.77.
+    승률 62.9%는 설계대로였으나 손익비 0.43 — 잦은 잔이익이 손절(42회)과
+    수수료(자본의 ~5%)를 못 이겼다. 파라미터를 데이터에 맞춰 되살리려는
+    시도는 과최적화다(CLAUDE.md 원칙). 재도전하려면 구조 자체를 바꿀 것.
+
+    추세추종과 반대 성격 — 수익이 '자주, 잘게' 나온다(높은 승률 x 낮은 손익비).
+    추세추종이 노는 횡보/상승장에서 일하고, 하락 추세는 EMA 필터로 회피한다.
+
+    ⚠️ 평균회귀의 본질적 위험: '더 떨어지면 더 싸졌다'는 논리는 폭락장에선
+    파산 논리가 된다. 그래서 청산을 세 겹으로 갖춘다:
+      1) 신호 청산 : RSI 회복 → 평균 복귀 완료 (정상 시나리오)
+      2) 시간 청산 : max_hold_bars 안에 회복 못 하면 포기 (가정 실패 인정)
+      3) 하드 스탑 : 진입가 - 3xATR (재난 방지선)
+    트레일링 스탑은 없다 — 이익을 태우는 전략이 아니라 빨리 회수하는 전략이다.
+    (trailing_stop 미정의 → 백테스터가 알아서 생략한다. 덕 타이핑.)
+    """
+
+    rsi_period: int = 4          # 짧은 RSI 로 '단기 급락' 포착 (Connors 계열 표준)
+    rsi_entry: float = 25.0      # 이보다 낮으면 과매도 → 진입
+    rsi_exit: float = 55.0       # 이보다 높으면 평균 복귀 완료 → 청산
+    ema_trend: int = 200         # 상승 국면 필터 (종가 > EMA200 일 때만 매수)
+    atr_period: int = 14
+    atr_stop_mult: float = 3.0   # 하드 스탑 — MR 은 넓게 (타이트하면 반등 직전에 털린다)
+    risk_per_trade: float = 0.01
+    max_hold_bars: int = 30      # 4h x 30 = 5일 안에 회복 없으면 시간 청산
+    min_order_value: float = 5000.0
+
+    @property
+    def warmup_bars(self) -> int:
+        return max(self.ema_trend, self.atr_period, self.rsi_period + 1)
+
+    def prepare(self, df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        out["ema_trend"] = ema(out["close"], self.ema_trend)
+        out["atr"] = atr(out, self.atr_period)
+        out["rsi"] = rsi(out["close"], self.rsi_period)
+        return out
+
+    def entry_signal(self, df: pd.DataFrame) -> pd.Series:
+        """과매도(RSI) + 상승 국면(EMA 위) 일 때 매수."""
+        oversold = df["rsi"] < self.rsi_entry
+        uptrend = df["close"] > df["ema_trend"]
+        signal = (oversold & uptrend).fillna(False)
+        signal.iloc[: self.warmup_bars] = False
+        return signal
+
+    def exit_signal(self, df: pd.DataFrame) -> pd.Series:
+        """RSI 가 회복되면 청산 — 평균 복귀 완료, 더 욕심내지 않는다."""
+        return (df["rsi"] > self.rsi_exit).fillna(False)
+
+    def initial_stop(self, entry_price: float, atr_value: float) -> float:
+        return entry_price - self.atr_stop_mult * atr_value
+
+    def position_size(
+        self, capital: float, entry_price: float, atr_value: float
+    ) -> float:
+        """추세추종과 같은 리스크 기반 사이징 (손절거리만 3xATR)."""
+        if atr_value <= 0 or entry_price <= 0 or capital <= 0:
+            return 0.0
+        risk_amount = capital * self.risk_per_trade
+        stop_distance = self.atr_stop_mult * atr_value
+        qty = risk_amount / stop_distance
+        qty = min(qty, capital / entry_price)
         if qty * entry_price < self.min_order_value:
             return 0.0
         return qty
