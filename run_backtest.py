@@ -8,6 +8,7 @@ from cbot.backtest import Backtester
 from cbot.data import get_candles_cached
 from cbot.exchanges.upbit import UpbitExchange
 from cbot.indicators import candles_to_df
+from cbot.metrics import evaluate
 from cbot.strategy import TrendFollowingStrategy
 
 MARKET = "KRW-BTC"
@@ -25,21 +26,17 @@ def main() -> None:
     backtester = Backtester(strategy, initial_capital=INITIAL_CAPITAL)
     result = backtester.run(df)
 
-    # --- 요약 (정식 성과 지표는 metrics.py 에서 확장 예정) ---
-    equity = result.equity
-    mdd = (equity / equity.cummax() - 1).min()  # 최대 낙폭
-
     print(f"기간          : {df.index[0]} ~ {df.index[-1]}  ({len(df)}봉)")
     print(f"초기 자본     : {result.initial_capital:>15,.0f} KRW")
     print(f"최종 자산     : {result.final_equity:>15,.0f} KRW")
-    print(f"총 수익률     : {result.total_return*100:>+14.2f} %")
-    print(f"최대 낙폭(MDD): {mdd*100:>+14.2f} %")
-    print(f"트레이드 수   : {len(result.trades):>15d}")
-    print(f"승률          : {result.win_rate*100:>14.1f} %")
+
+    # Buy & Hold 와 비교해야 전략의 기여를 알 수 있다
+    bh_return = df["close"].iloc[-1] / df["close"].iloc[0] - 1
+    print(f"Buy & Hold    : {bh_return*100:>+14.2f} %")
+    print()
+    print(evaluate(result).format())
 
     if result.trades:
-        total_fees = sum(t.fees for t in result.trades)
-        print(f"총 수수료     : {total_fees:>15,.0f} KRW")
         print("\n--- 트레이드 내역 ---")
         for t in result.trades:
             print(
