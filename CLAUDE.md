@@ -27,8 +27,9 @@ Upbit 대상 알고리즘 트레이딩 봇. ATR 기반 추세추종 전략을 �
 uv sync                 # pyproject.toml/uv.lock 기준으로 환경 구성
 uv add <패키지>          # 의존성 추가
 uv run <스크립트.py>     # venv 안에서 실행
-uv run pytest           # 테스트 실행
-uv run run_backtest.py  # 백테스트 실행 (구현 예정)
+uv run pytest             # 테스트 실행
+uv run run_backtest.py    # 백테스트 실행
+uv run run_robustness.py  # 견고성 검증 (마켓/기간/파라미터 민감성)
 ```
 
 ## 디렉토리 구조 (구축 예정)
