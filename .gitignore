@@ -12,9 +12,8 @@ __pycache__/
 *.key
 secrets.*
 
-# 데이터·결과물 (용량 큼, 재생성 가능)
-data/*.csv
-data/*.parquet
+# 데이터·결과물·런타임 상태 (재생성 가능, 머신별로 다름)
+data/
 results/
 
 # OS / 에디터
