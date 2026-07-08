@@ -30,6 +30,7 @@ uv run <스크립트.py>     # venv 안에서 실행
 uv run pytest             # 테스트 실행
 uv run run_backtest.py    # 백테스트 실행
 uv run run_robustness.py  # 견고성 검증 (마켓/기간/파라미터 민감성)
+uv run run_paper.py       # 페이퍼 트레이딩 루프 (--once: 1회 점검)
 ```
 
 ## 디렉토리 구조 (구축 예정)
@@ -42,8 +43,10 @@ cbot/
 ├── exchanges/
 │   ├── base.py          Exchange 인터페이스(프로토콜): 캔들 조회·주문·잔고
 │   ├── upbit.py         Upbit 어댑터 (공개 캔들 + JWT 인증 주문, 429/5xx 재시도)
+│   ├── paper.py         페이퍼 어댑터 (시세는 실거래소 위임, 체결·잔고 시뮬레이션)
 │   └── (binance.py)     추후 추가 시 여기에
 ├── data.py              캔들 로컬 캐시 (data/*.csv — API 재호출 최소화)
+├── live.py              실시간 엔진 (페이퍼/실전 공용 — 어댑터만 교체)
 ├── indicators.py        ATR, EMA, Donchian 등 지표 (거래소 무관)
 ├── strategy.py          진입/청산 신호 생성 (거래소 무관)
 ├── backtest.py          백테스트 엔진 (수수료·슬리피지 포함, 거래소 무관)
