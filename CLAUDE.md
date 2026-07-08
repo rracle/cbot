@@ -10,6 +10,9 @@ Upbit 대상 알고리즘 트레이딩 봇. ATR 기반 추세추종 전략을 �
 - **손절·포지션 사이징이 없는 전략은 실전에 배포하지 않는다.**
 - **API 키·시드는 `.env`로만 관리하고 절대 커밋하지 않는다.** (`.gitignore`에 포함됨)
 - 과최적화 경계: 파라미터를 과거 데이터에 맞춰 미세조정하지 않는다. 견고성 > 최고 수익률.
+- **거래소 추상화**: 전략·백테스트·지표 코드는 특정 거래소를 몰라야 한다. 거래소 연동은
+  `exchanges/`의 얇은 어댑터에만 둔다. 공통 인터페이스(`Exchange` 프로토콜)에만 의존하고,
+  Upbit→Binance 등 교체 시 어댑터만 갈아끼운다.
 
 ## 기술 스택
 - **Python 3.12** (uv가 격리 관리 — 시스템 파이썬과 무관)
@@ -28,12 +31,26 @@ uv run run_backtest.py  # 백테스트 실행 (구현 예정)
 ```
 
 ## 디렉토리 구조 (구축 예정)
-- `cbot/data.py`        Upbit 캔들 수집
-- `cbot/indicators.py`  ATR, EMA, Donchian 등 지표
-- `cbot/strategy.py`    진입/청산 신호 생성
-- `cbot/backtest.py`    백테스트 엔진 (수수료·슬리피지 포함)
-- `cbot/metrics.py`     성과 지표 (CAGR, MDD, Sharpe, 승률, 손익비)
-- `run_backtest.py`     실행 스크립트
+
+거래소에 독립적인 **코어**와 거래소별 **어댑터**를 분리한다.
+
+```
+cbot/
+├── models.py            공통 데이터 타입 (Candle, Order, Position 등)
+├── exchanges/
+│   ├── base.py          Exchange 인터페이스(프로토콜): 캔들 조회·주문·잔고
+│   ├── upbit.py         Upbit 어댑터 (공개 캔들 + JWT 인증 주문)
+│   └── (binance.py)     추후 추가 시 여기에
+├── indicators.py        ATR, EMA, Donchian 등 지표 (거래소 무관)
+├── strategy.py          진입/청산 신호 생성 (거래소 무관)
+├── backtest.py          백테스트 엔진 (수수료·슬리피지 포함, 거래소 무관)
+└── metrics.py           성과 지표 (CAGR, MDD, Sharpe, 승률, 손익비)
+run_backtest.py          실행 스크립트
+```
+
+**의존성 방향**: `strategy`/`backtest`/`indicators` → `models`(공통 타입)에만 의존.
+거래소 어댑터(`exchanges/*`)도 `models`를 구현/반환할 뿐, 코어가 어댑터를 직접 import 하지 않는다.
+데이터는 어댑터가 `Candle` 리스트/DataFrame으로 넘겨주고, 코어는 그것만 소비한다.
 
 ## 전략 요약 (ATR 추세추종, 초기안)
 - **타임프레임**: 4시간봉(`/v1/candles/minutes/240`) — 노이즈·수수료 회피
