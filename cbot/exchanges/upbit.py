@@ -138,11 +138,23 @@ class UpbitExchange:
     # 내부 헬퍼
     # ------------------------------------------------------------------
 
-    def _get(self, url: str, params: dict) -> list[dict]:
-        """공개 GET 요청. 에러면 예외를 던지고, 성공하면 JSON(list)을 반환."""
-        resp = self._session.get(url, params=params, timeout=10)
-        resp.raise_for_status()  # 4xx/5xx 면 예외
-        return resp.json()
+    def _get(self, url: str, params: dict, max_retries: int = 3) -> list[dict]:
+        """공개 GET 요청. 성공하면 JSON(list)을 반환한다.
+
+        429(rate limit 초과)와 5xx(서버 오류)는 '일시적' 실패라 잠깐 기다렸다
+        다시 시도하면 대개 성공한다 → 지수 백오프(0.5초→1초→2초)로 재시도.
+        반면 404 같은 나머지 4xx 는 우리 요청 자체가 잘못된 것이라 재시도해도
+        소용없다 → 즉시 예외.
+        """
+        for attempt in range(max_retries + 1):
+            resp = self._session.get(url, params=params, timeout=10)
+            retryable = resp.status_code == 429 or resp.status_code >= 500
+            if retryable and attempt < max_retries:
+                time.sleep(0.5 * (2**attempt))  # 시도할수록 대기 2배
+                continue
+            resp.raise_for_status()  # 여기 도달한 4xx/5xx 는 예외
+            return resp.json()
+        raise AssertionError("unreachable")  # 루프는 항상 return/raise 로 끝난다
 
     @staticmethod
     def _to_candle(row: dict) -> Candle:

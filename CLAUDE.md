@@ -27,6 +27,7 @@ Upbit 대상 알고리즘 트레이딩 봇. ATR 기반 추세추종 전략을 �
 uv sync                 # pyproject.toml/uv.lock 기준으로 환경 구성
 uv add <패키지>          # 의존성 추가
 uv run <스크립트.py>     # venv 안에서 실행
+uv run pytest           # 테스트 실행
 uv run run_backtest.py  # 백테스트 실행 (구현 예정)
 ```
 
@@ -39,12 +40,14 @@ cbot/
 ├── models.py            공통 데이터 타입 (Candle, Order, Position 등)
 ├── exchanges/
 │   ├── base.py          Exchange 인터페이스(프로토콜): 캔들 조회·주문·잔고
-│   ├── upbit.py         Upbit 어댑터 (공개 캔들 + JWT 인증 주문)
+│   ├── upbit.py         Upbit 어댑터 (공개 캔들 + JWT 인증 주문, 429/5xx 재시도)
 │   └── (binance.py)     추후 추가 시 여기에
+├── data.py              캔들 로컬 캐시 (data/*.csv — API 재호출 최소화)
 ├── indicators.py        ATR, EMA, Donchian 등 지표 (거래소 무관)
 ├── strategy.py          진입/청산 신호 생성 (거래소 무관)
 ├── backtest.py          백테스트 엔진 (수수료·슬리피지 포함, 거래소 무관)
 └── metrics.py           성과 지표 (CAGR, MDD, Sharpe, 승률, 손익비)
+tests/                   pytest 단위 테스트 (지표·전략·어댑터)
 run_backtest.py          실행 스크립트
 ```
 

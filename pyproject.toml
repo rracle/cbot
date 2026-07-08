@@ -9,3 +9,13 @@ dependencies = [
     "pandas>=3.0.3",
     "requests>=2.34.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+# 프로젝트 루트를 import 경로에 추가 → 테스트에서 `import cbot` 가능
+pythonpath = ["."]
+testpaths = ["tests"]
