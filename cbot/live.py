@@ -135,6 +135,16 @@ class LiveEngine:
         elif bool(self.strategy.entry_signal(df).iloc[-1]):
             self._buy(atr_signal=float(bar["atr"]))
 
+        # 하트비트: 봉 처리 사실을 항상 기록한다 — 이벤트 없는 '건강한 침묵'과
+        # '조용한 정지'를 로그만으로 구분할 수 있게 (관측성)
+        if self.state.qty > 0:
+            status = f"보유 {self.state.qty:.8f} (스탑 {self.state.stop:,.0f})"
+        else:
+            status = "무포지션 (신호 없음)"
+        self._log(
+            f"봉 처리: {closed[-1].timestamp:%m-%d %H:%M} 종가 {float(bar['close']):,.0f} — {status}"
+        )
+
     def _buy(self, atr_signal: float) -> None:
         quote = self.market.split("-")[0]
         capital = self.exchange.get_balance(quote).available
