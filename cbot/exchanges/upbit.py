@@ -20,9 +20,6 @@ import requests
 
 from cbot.models import Balance, Candle, Order
 
-# Upbit 공개 API 베이스 URL
-BASE_URL = "https://api.upbit.com/v1"
-
 # 한 요청당 최대 캔들 개수 (Upbit 제한)
 MAX_COUNT_PER_REQUEST = 200
 
@@ -34,6 +31,9 @@ class UpbitExchange:
     """Upbit 어댑터. 시세 조회는 바로 쓸 수 있고, 거래는 인증 키가 필요하다."""
 
     name = "upbit"
+    # 클래스 속성으로 둔 이유: 빗썸 API 2.0 이 업비트 규격과 호환이라,
+    # 하위 어댑터(BithumbExchange)가 URL 만 바꿔 전체 로직을 재사용한다.
+    BASE_URL = "https://api.upbit.com/v1"
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class UpbitExchange:
         if count <= 0:
             return []
 
-        url = f"{BASE_URL}/candles/minutes/{unit}"
+        url = f"{self.BASE_URL}/candles/minutes/{unit}"
         collected: list[dict] = []
         to: str | None = None  # None 이면 '가장 최근'부터
 
@@ -109,7 +109,7 @@ class UpbitExchange:
 
     def get_current_price(self, market: str) -> float:
         """현재가(최근 체결가)를 반환한다."""
-        rows = self._get(f"{BASE_URL}/ticker", {"markets": market})
+        rows = self._get(f"{self.BASE_URL}/ticker", {"markets": market})
         if not rows:
             raise RuntimeError(f"현재가 조회 실패: {market}")
         return float(rows[0]["trade_price"])
