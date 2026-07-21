@@ -118,3 +118,28 @@ def test_flat_market_never_trades(tmp_path):
     engine.step()
     assert engine.state.qty == 0.0
     assert engine.state.trades == []
+
+
+def test_loads_enough_history_for_ema_warmup(tmp_path):
+    """EMA 워밍업 버그 회귀 방지: 엔진은 ema_slow 의 5배 이상 캔들을 요청해야 한다.
+
+    (실거래 첫 진입에서 발견: warmup_bars+60=260개만 로드하면 EMA200 이 덜 데워져
+    과소평가되고, 백테스트가 내지 않을 진입을 실시간에서 오발했다.)
+    """
+
+    class CountRecordingSource(FakeSource):
+        def __init__(self):
+            super().__init__(make_candles(RISING), price=100.0)
+            self.requested = []
+
+        def get_candles(self, market, unit=240, count=200):
+            self.requested.append(count)
+            return self.candles[-count:]
+
+    src = CountRecordingSource()
+    exchange = PaperExchange(src, initial_krw=1_000_000, state_path=str(tmp_path / "p.json"))
+    strat = TrendFollowingStrategy()  # 실전 파라미터 (ema_slow=200)
+    engine = LiveEngine(exchange, strat, "KRW-BTC", unit=UNIT, state_path=str(tmp_path / "l.json"))
+    engine.step()
+
+    assert max(src.requested) >= strat.ema_slow * 5  # 최소 1000개

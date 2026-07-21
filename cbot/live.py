@@ -87,8 +87,14 @@ class LiveEngine:
                 self._sell(reason="stop")
 
         # --- 2) 봉 마감 처리: 새로 마감된 봉이 있을 때 '한 번만' ---
+        # ⚠️ EMA 워밍업: 재귀식 EMA(adjust=False)는 span 의 ~5배 데이터가 있어야
+        # 수렴한다. warmup_bars(=ema_slow) 만큼만 로드하면 EMA200 이 덜 데워져
+        # 과소평가되고, 백테스트가 내지 않을 진입 신호를 실시간에서 오발하게 된다
+        # (실측: 260개 로드 시 EMA200 이 ~1% 과소 → 조기 진입 버그).
+        # ema_slow 의 5배를 로드해 백테스트와 EMA 값을 일치시킨다.
         candles = self.exchange.get_candles(
-            self.market, unit=self.unit, count=self.strategy.warmup_bars + 60
+            self.market, unit=self.unit,
+            count=max(self.strategy.warmup_bars * 5, 260),
         )
         closed = self._closed_only(candles, now)
         if closed:
